@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>인스타그램 팔로워/팔로잉 분석기</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      min-height: 100vh;
+      background: #f3f4f6;
+      padding: 2rem;
+      color: #1f2933;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 2rem 2.25rem;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+    h1 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      text-align: center;
+      color: #111827;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      text-align: center;
+      color: #718096;
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+    }
+    .instructions {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      padding: 1rem 1.25rem;
+      border-radius: 10px;
+      margin-bottom: 1.75rem;
+      font-size: 0.9rem;
+      color: #4b5563;
+    }
+    .instructions h3 {
+      color: #2d3748;
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+    .instructions ol {
+      margin-left: 1.5rem;
+      line-height: 1.8;
+    }
+    .instructions li {
+      margin-bottom: 0.5rem;
+    }
+    .input-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+    @media (max-width: 768px) {
+      .input-section {
+        grid-template-columns: 1fr;
+      }
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .input-group label {
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+    .input-group textarea {
+      width: 100%;
+      min-height: 300px;
+      padding: 1rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 0.95rem;
+      resize: vertical;
+      transition: border-color 0.2s;
+    }
+    .input-group textarea:focus {
+      outline: none;
+      border-color: #4facfe;
+    }
+    .input-group textarea::placeholder {
+      color: #a0aec0;
+    }
+    .btn {
+      width: 100%;
+      padding: 0.9rem 1rem;
+      background: #2563eb;
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+      margin-bottom: 1.75rem;
+    }
+    .btn:hover {
+      background: #1d4ed8;
+      box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
+      transform: translateY(-1px);
+    }
+    .btn:active {
+      transform: translateY(0);
+      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.18);
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .results {
+      display: none;
+    }
+    .results.show {
+      display: block;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      color: #111827;
+      padding: 1.25rem 1.2rem;
+      border-radius: 12px;
+      text-align: center;
+    }
+    .stat-card.followers .number {
+      color: #2563eb;
+    }
+    .stat-card.following .number {
+      color: #059669;
+    }
+    .stat-card.mutual .number {
+      color: #7c3aed;
+    }
+    .stat-card.only-followers .number {
+      color: #d97706;
+    }
+    .stat-card.only-following .number {
+      color: #db2777;
+    }
+    .stat-card h3 {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-bottom: 0.4rem;
+    }
+    .stat-card .number {
+      font-size: 1.7rem;
+      font-weight: 700;
+    }
+    .lists {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+    @media (max-width: 768px) {
+      .lists {
+        grid-template-columns: 1fr;
+      }
+    }
+    .list-group {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 1.25rem 1.3rem;
+      border: 1px solid #e5e7eb;
+    }
+    .list-group h3 {
+      color: #111827;
+      margin-bottom: 0.8rem;
+      font-size: 1.05rem;
+    }
+    .list-group .list {
+      max-height: 420px;
+      overflow-y: auto;
+      background: #f9fafb;
+      border-radius: 10px;
+      padding: 0.75rem 0.9rem;
+    }
+    .list-item {
+      padding: 0.45rem 0.3rem;
+      border-bottom: 1px solid #e5e7eb;
+      color: #374151;
+      font-size: 0.9rem;
+    }
+    .list-item:last-child {
+      border-bottom: none;
+    }
+    .list-item:hover {
+      background: #eef2f7;
+    }
+    .empty-message {
+      text-align: center;
+      color: #a0aec0;
+      padding: 2rem;
+      font-style: italic;
+    }
+    .error {
+      display: none;
+      padding: 0.9rem 1rem;
+      background: #fef2f2;
+      color: #b91c1c;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      text-align: center;
+      font-size: 0.9rem;
+      border: 1px solid #fecaca;
+    }
+    .error.show {
+      display: block;
+    }
+    .copy-btn {
+      margin-top: 0.75rem;
+      padding: 0.45rem 0.9rem;
+      background: #e5edff;
+      color: #1d4ed8;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .copy-btn:hover {
+      background: #d0e0ff;
+      color: #1e40af;
+    }
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 2rem;
+      color: #4a5568;
+    }
+    .loading.show {
+      display: block;
+    }
+    .loading-spinner {
+      border: 4px solid #e5e7eb;
+      border-top: 4px solid #2563eb;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 0.75rem;
+      display: none;
+    }
+    .progress-bar.show {
+      display: block;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #2563eb;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    .file-upload-area {
+      border: 2px dashed #d1d5db;
+      border-radius: 14px;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      background: #f9fafb;
+      transition: border-color 0.2s ease, background 0.2s ease;
+      cursor: pointer;
+      margin-bottom: 1.75rem;
+    }
+    .file-upload-area:hover {
+      border-color: #2563eb;
+      background: #f3f4ff;
+    }
+    .file-upload-area.dragover {
+      border-color: #2563eb;
+      background: #e0e7ff;
+    }
+    .file-upload-icon {
+      font-size: 2.4rem;
+      margin-bottom: 0.75rem;
+    }
+    .file-upload-text {
+      font-size: 1rem;
+      color: #374151;
+      margin-bottom: 0.35rem;
+      font-weight: 600;
+    }
+    .file-upload-hint {
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    .file-name {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: white;
+      border-radius: 8px;
+      color: #2d3748;
+      font-weight: 500;
+      display: none;
+    }
+    .file-name.show {
+      display: block;
+    }
+    .username-date {
+      font-size: 0.8rem;
+      color: #a0aec0;
+      margin-left: 0.35rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 인스타그램 팔로워/팔로잉 분석기</h1>
+    <p class="subtitle">ZIP 파일을 업로드하여 팔로워와 팔로잉 목록을 자동으로 분석합니다</p>
+    
+    <div class="instructions">
+      <h3>📋 사용 방법</h3>
+      <ol>
+        <li>인스타그램에서 다운로드한 <strong>ZIP 파일</strong>을 업로드하세요</li>
+        <li>ZIP 파일 안에 있는 <strong>followers_1.json</strong>과 <strong>following.json</strong> 파일을 자동으로 찾아 분석합니다</li>
+        <li>분석 결과를 확인하고 목록을 복사할 수 있습니다</li>
+      </ol>
+      <p style="margin-top: 0.5rem; color: #718096; font-size: 0.85rem;">
+        💡 팁: ZIP 파일을 드래그 앤 드롭하거나 클릭하여 선택할 수 있습니다.
+      </p>
+    </div>
+
+    <div class="file-upload-area" id="uploadArea">
+      <div class="file-upload-icon">📦</div>
+      <div class="file-upload-text">ZIP 파일을 여기에 드롭하거나 클릭하여 선택</div>
+      <div class="file-upload-hint">인스타그램에서 다운로드한 ZIP 파일 (followers_1.json, following.json 포함)</div>
+      <input type="file" id="fileInput" accept=".zip" />
+      <div class="file-name" id="fileName"></div>
+    </div>
+
+    <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+      <button type="button" class="btn" id="analyzeBtn" style="display: none;">🔍 분석하기</button>
+      <button type="button" class="btn" id="toggleModeBtn" style="flex: 0 0 auto; background: #718096; padding: 1rem 1.5rem; display: none;">📋 수동 입력 모드</button>
+    </div>
+
+    <div class="input-section" id="manualInputSection" style="display: none;">
+      <div class="input-group">
+        <label for="followers">팔로워 목록 (수동 입력)</label>
+        <textarea id="followers" placeholder="인스타그램에서 복사한 팔로워 목록을 붙여넣으세요"></textarea>
+      </div>
+      <div class="input-group">
+        <label for="following">팔로잉 목록 (수동 입력)</label>
+        <textarea id="following" placeholder="인스타그램에서 복사한 팔로잉 목록을 붙여넣으세요"></textarea>
+      </div>
+    </div>
+
+    <div class="error" id="error"></div>
+
+    <div class="loading" id="loading">
+      <div class="loading-spinner"></div>
+      <p>팔로워/팔로잉 목록을 가져오는 중...</p>
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <div class="results" id="results">
+      <div class="stats">
+        <div class="stat-card followers">
+          <h3>전체 팔로워</h3>
+          <div class="number" id="totalFollowers">0</div>
+        </div>
+        <div class="stat-card following">
+          <h3>전체 팔로잉</h3>
+          <div class="number" id="totalFollowing">0</div>
+        </div>
+        <div class="stat-card mutual">
+          <h3>상호 팔로우</h3>
+          <div class="number" id="mutualCount">0</div>
+        </div>
+        <div class="stat-card only-followers">
+          <h3>나를 팔로우만 함</h3>
+          <div class="number" id="onlyFollowersCount">0</div>
+        </div>
+        <div class="stat-card only-following">
+          <h3>내가 팔로우만 함</h3>
+          <div class="number" id="onlyFollowingCount">0</div>
+        </div>
+      </div>
+
+      <div class="lists">
+        <div class="list-group">
+          <h3>🤝 상호 팔로우 (<span id="mutualCountLabel">0</span>명)</h3>
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center;">
+            <input
+              type="text"
+              id="mutualFilter"
+              placeholder="검색 (username)"
+              style="flex: 1; padding: 0.35rem 0.6rem; font-size: 0.85rem; border-radius: 6px; border: 1px solid #e2e8f0;"
+              oninput="handleFilterChange('mutual', this.value)"
+            />
+            <select
+              id="mutualSort"
+              style="padding: 0.35rem 0.6rem; font-size: 0.8rem; border-radius: 6px; border: 1px solid #e2e8f0;"
+              onchange="handleSortChange('mutual', this.value)"
+            >
+              <option value="name">이름순</option>
+              <option value="date_desc">날짜순(최신)</option>
+              <option value="date_asc">날짜순(오래된)</option>
+            </select>
+          </div>
+          <div class="list" id="mutualList"></div>
+          <button class="copy-btn" onclick="copyList('mutual')">목록 복사</button>
+        </div>
+        <div class="list-group">
+          <h3>👤 나를 팔로우만 함 (<span id="onlyFollowersCountLabel">0</span>명)</h3>
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center;">
+            <input
+              type="text"
+              id="onlyFollowersFilter"
+              placeholder="검색 (username)"
+              style="flex: 1; padding: 0.35rem 0.6rem; font-size: 0.85rem; border-radius: 6px; border: 1px solid #e2e8f0;"
+              oninput="handleFilterChange('onlyFollowers', this.value)"
+            />
+            <select
+              id="onlyFollowersSort"
+              style="padding: 0.35rem 0.6rem; font-size: 0.8rem; border-radius: 6px; border: 1px solid #e2e8f0;"
+              onchange="handleSortChange('onlyFollowers', this.value)"
+            >
+              <option value="name">이름순</option>
+              <option value="date_desc">날짜순(최신)</option>
+              <option value="date_asc">날짜순(오래된)</option>
+            </select>
+          </div>
+          <div class="list" id="onlyFollowersList"></div>
+          <button class="copy-btn" onclick="copyList('onlyFollowers')">목록 복사</button>
+        </div>
+        <div class="list-group">
+          <h3>👥 내가 팔로우만 함 (<span id="onlyFollowingCountLabel">0</span>명)</h3>
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center;">
+            <input
+              type="text"
+              id="onlyFollowingFilter"
+              placeholder="검색 (username)"
+              style="flex: 1; padding: 0.35rem 0.6rem; font-size: 0.85rem; border-radius: 6px; border: 1px solid #e2e8f0;"
+              oninput="handleFilterChange('onlyFollowing', this.value)"
+            />
+            <select
+              id="onlyFollowingSort"
+              style="padding: 0.35rem 0.6rem; font-size: 0.8rem; border-radius: 6px; border: 1px solid #e2e8f0;"
+              onchange="handleSortChange('onlyFollowing', this.value)"
+            >
+              <option value="name">이름순</option>
+              <option value="date_desc">날짜순(최신)</option>
+              <option value="date_asc">날짜순(오래된)</option>
+            </select>
+          </div>
+          <div class="list" id="onlyFollowingList"></div>
+          <button class="copy-btn" onclick="copyList('onlyFollowing')">목록 복사</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let analysisData = {
+      mutual: [],
+      onlyFollowers: [],
+      onlyFollowing: []
+    };
+
+    let isManualMode = false;
+    let uploadedFollowers = [];
+    let uploadedFollowing = [];
+    let followersTimestampMap = {};
+    let followingTimestampMap = {};
+    const listFilters = {
+      mutual: '',
+      onlyFollowers: '',
+      onlyFollowing: ''
+    };
+    const listSortModes = {
+      mutual: 'name',
+      onlyFollowers: 'name',
+      onlyFollowing: 'name'
+    };
+
+    // ZIP 파일 처리
+    async function handleZipFile(file) {
+      const errorDiv = document.getElementById('error');
+      const loadingDiv = document.getElementById('loading');
+      const fileNameDiv = document.getElementById('fileName');
+      const analyzeBtn = document.getElementById('analyzeBtn');
+      const uploadArea = document.getElementById('uploadArea');
+
+      if (!file || !file.name.endsWith('.zip')) {
+        errorDiv.textContent = 'ZIP 파일만 업로드할 수 있습니다.';
+        errorDiv.classList.add('show');
+        return;
+      }
+
+      // 파일명 표시
+      fileNameDiv.textContent = `📁 ${file.name}`;
+      fileNameDiv.classList.add('show');
+
+      // 에러 메시지 숨기기
+      errorDiv.classList.remove('show');
+      loadingDiv.classList.add('show');
+      loadingDiv.querySelector('p').textContent = 'ZIP 파일을 읽는 중...';
+
+      try {
+        // JSZip으로 ZIP 파일 읽기
+        const zip = await JSZip.loadAsync(file);
+        
+        loadingDiv.querySelector('p').textContent = 'JSON 파일을 찾는 중...';
+
+        // followers_1.json 찾기
+        let followersFile = null;
+        let followingFile = null;
+
+        // 파일명으로 직접 찾기
+        for (const [path, zipEntry] of Object.entries(zip.files)) {
+          const fileName = path.split('/').pop().toLowerCase();
+          
+          if (fileName === 'followers_1.json' || fileName === 'followers.json') {
+            followersFile = zipEntry;
+          } else if (fileName === 'following.json') {
+            followingFile = zipEntry;
+          }
+        }
+
+        // followers_1.json이 없으면 followers로 시작하는 파일 찾기
+        if (!followersFile) {
+          for (const [path, zipEntry] of Object.entries(zip.files)) {
+            const fileName = path.split('/').pop().toLowerCase();
+            if (fileName.startsWith('followers') && fileName.endsWith('.json')) {
+              followersFile = zipEntry;
+              break;
+            }
+          }
+        }
+
+        if (!followersFile && !followingFile) {
+          throw new Error('ZIP 파일에서 followers_1.json 또는 following.json 파일을 찾을 수 없습니다.');
+        }
+
+        // JSON 파일 읽기
+        loadingDiv.querySelector('p').textContent = '데이터를 파싱하는 중...';
+
+        // 이전 데이터 초기화
+        uploadedFollowers = [];
+        uploadedFollowing = [];
+        followersTimestampMap = {};
+        followingTimestampMap = {};
+
+        if (followersFile) {
+          const followersContent = await followersFile.async('string');
+          uploadedFollowers = extractUsernamesFromJSON(followersContent, 'followers');
+          console.log(`팔로워 ${uploadedFollowers.length}명 발견`);
+        }
+
+        if (followingFile) {
+          const followingContent = await followingFile.async('string');
+          uploadedFollowing = extractUsernamesFromJSON(followingContent, 'following');
+          console.log(`팔로잉 ${uploadedFollowing.length}명 발견`);
+        }
+
+        if (uploadedFollowers.length === 0 && uploadedFollowing.length === 0) {
+          throw new Error('JSON 파일에서 사용자 정보를 찾을 수 없습니다.');
+        }
+
+        // 분석 버튼 표시
+        analyzeBtn.style.display = 'block';
+        loadingDiv.classList.remove('show');
+        
+        // 자동으로 분석 실행
+        setTimeout(() => {
+          analyzeFromUploaded();
+        }, 500);
+
+      } catch (error) {
+        console.error('ZIP 파일 처리 오류:', error);
+        loadingDiv.classList.remove('show');
+        errorDiv.textContent = `오류: ${error.message || 'ZIP 파일을 읽는 중 문제가 발생했습니다.'}`;
+        errorDiv.classList.add('show');
+        fileNameDiv.classList.remove('show');
+      }
+    }
+
+    // 필터/정렬 상태 변경
+    function handleFilterChange(key, value) {
+      listFilters[key] = value || '';
+      if (key === 'mutual') {
+        displayList('mutualList', analysisData.mutual, 'both', 'mutual');
+      } else if (key === 'onlyFollowers') {
+        displayList('onlyFollowersList', analysisData.onlyFollowers, 'followers', 'onlyFollowers');
+      } else if (key === 'onlyFollowing') {
+        displayList('onlyFollowingList', analysisData.onlyFollowing, 'following', 'onlyFollowing');
+      }
+    }
+
+    function handleSortChange(key, value) {
+      listSortModes[key] = value || 'name';
+      if (key === 'mutual') {
+        displayList('mutualList', analysisData.mutual, 'both', 'mutual');
+      } else if (key === 'onlyFollowers') {
+        displayList('onlyFollowersList', analysisData.onlyFollowers, 'followers', 'onlyFollowers');
+      } else if (key === 'onlyFollowing') {
+        displayList('onlyFollowingList', analysisData.onlyFollowing, 'following', 'onlyFollowing');
+      }
+    }
+
+    // href에서 사용자명 추출 (예: https://www.instagram.com/_u/soommml)
+    function extractUsernameFromHref(href) {
+      if (!href || typeof href !== 'string') return null;
+      try {
+        const url = new URL(href);
+        const segments = url.pathname.split('/').filter(Boolean);
+        if (segments.length === 0) return null;
+        let last = segments[segments.length - 1];
+        // /_u/username 형태 처리
+        if (last === '_u' && segments.length > 1) {
+          last = segments[segments.length - 2];
+        }
+        return last || null;
+      } catch (e) {
+        const match = href.match(/instagram\.com\/(?:_u\/)?([A-Za-z0-9._]+)/);
+        return match ? match[1] : null;
+      }
+    }
+
+    // 개별 객체에서 사용자명 및 timestamp 추출 (followers, following JSON 공통 처리)
+    function extractUsernameFromItem(item, type) {
+      if (!item) return null;
+
+      if (typeof item === 'string') {
+        return item.toLowerCase().trim().replace('@', '');
+      }
+
+      if (typeof item !== 'object') return null;
+
+      let username = null;
+      let timestamp = null;
+
+      // 1순위: string_list_data 내부
+      if (Array.isArray(item.string_list_data) && item.string_list_data.length > 0) {
+        const entry = item.string_list_data[0];
+        username =
+          (entry && (entry.value || entry.username || entry.title)) ||
+          extractUsernameFromHref(entry && entry.href);
+        if (entry && entry.timestamp) {
+          timestamp = entry.timestamp;
+        }
+      }
+
+      // 2순위: 객체의 직접 필드
+      if (!username) {
+        username = item.username || item.value || item.title;
+      }
+
+      // 3순위: 최상위 href 필드
+      if (!username && item.href) {
+        username = extractUsernameFromHref(item.href);
+      }
+
+      // timestamp가 아직 없고, 상위에 있을 수도 있을 때
+      if (!timestamp && item.timestamp) {
+        timestamp = item.timestamp;
+      }
+
+      if (!username || typeof username !== 'string') return null;
+
+      const cleaned = username.toLowerCase().trim().replace('@', '');
+      if (!cleaned.length) return null;
+
+      // timestamp 저장 (가능한 경우)
+      if (timestamp) {
+        if (type === 'followers') {
+          if (!followersTimestampMap[cleaned]) {
+            followersTimestampMap[cleaned] = timestamp;
+          }
+        } else if (type === 'following') {
+          if (!followingTimestampMap[cleaned]) {
+            followingTimestampMap[cleaned] = timestamp;
+          }
+        }
+      }
+
+      return cleaned;
+    }
+
+    // JSON에서 사용자명 목록 추출
+    function extractUsernamesFromJSON(jsonContent, type) {
+      try {
+        const data = JSON.parse(jsonContent);
+        const usernames = new Set();
+
+        // 배열 최상위
+        if (Array.isArray(data)) {
+          data.forEach(item => {
+            const username = extractUsernameFromItem(item, type);
+            if (username) usernames.add(username);
+          });
+        } else if (data && typeof data === 'object') {
+          // 객체 최상위: {users: [...]}, {relationships_followers: [...]}, {followers: [...]}, ...
+          const users =
+            data.users ||
+            data.relationships_followers ||
+            data.relationships_following ||
+            data.followers ||
+            data.following ||
+            data.list ||
+            null;
+
+          if (Array.isArray(users)) {
+            users.forEach(item => {
+              const username = extractUsernameFromItem(item, type);
+              if (username) usernames.add(username);
+            });
+          } else {
+            // 혹시 모를 단일 객체 형태도 처리
+            const username = extractUsernameFromItem(data, type);
+            if (username) usernames.add(username);
+          }
+        }
+
+        return Array.from(usernames);
+      } catch (error) {
+        console.error('JSON 파싱 오류:', error);
+        throw new Error('JSON 파일 형식이 올바르지 않습니다.');
+      }
+    }
+
+    // 업로드된 데이터로 분석
+    function analyzeFromUploaded() {
+      const errorDiv = document.getElementById('error');
+      const resultsDiv = document.getElementById('results');
+      const loadingDiv = document.getElementById('loading');
+      const btn = document.getElementById('analyzeBtn');
+
+      loadingDiv.classList.remove('show');
+      errorDiv.classList.remove('show');
+
+      if (uploadedFollowers.length === 0 && uploadedFollowing.length === 0) {
+        errorDiv.textContent = '분석할 데이터가 없습니다.';
+        errorDiv.classList.add('show');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '분석 중...';
+
+      try {
+        // 집합으로 변환하여 빠른 조회
+        const followersSet = new Set(uploadedFollowers);
+        const followingSet = new Set(uploadedFollowing);
+
+        // 분석
+        const mutual = [];
+        const onlyFollowers = [];
+        const onlyFollowing = [];
+
+        // 상호 팔로우 찾기
+        followersSet.forEach(username => {
+          if (followingSet.has(username)) {
+            mutual.push(username);
+          } else {
+            onlyFollowers.push(username);
+          }
+        });
+
+        // 내가 팔로우만 하는 계정 찾기
+        followingSet.forEach(username => {
+          if (!followersSet.has(username)) {
+            onlyFollowing.push(username);
+          }
+        });
+
+        // 정렬
+        mutual.sort();
+        onlyFollowers.sort();
+        onlyFollowing.sort();
+
+        // 데이터 저장
+        analysisData = {
+          mutual,
+          onlyFollowers,
+          onlyFollowing
+        };
+
+        // 결과 표시
+        displayResults(uploadedFollowers.length, uploadedFollowing.length, mutual.length, onlyFollowers.length, onlyFollowing.length);
+        
+        resultsDiv.classList.add('show');
+        btn.disabled = false;
+        btn.textContent = '🔍 분석하기';
+
+        // 결과로 스크롤
+        resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      } catch (error) {
+        btn.disabled = false;
+        btn.textContent = '🔍 분석하기';
+        errorDiv.textContent = error.message || '분석 중 오류가 발생했습니다.';
+        errorDiv.classList.add('show');
+        resultsDiv.classList.remove('show');
+      }
+    }
+
+    // 수동 입력 모드 토글
+    function toggleManualMode() {
+      isManualMode = !isManualMode;
+      const manualSection = document.getElementById('manualInputSection');
+      const analyzeBtn = document.getElementById('analyzeBtn');
+      const uploadArea = document.getElementById('uploadArea');
+      const toggleBtn = document.getElementById('toggleModeBtn');
+
+      if (isManualMode) {
+        manualSection.style.display = 'grid';
+        analyzeBtn.style.display = 'block';
+        uploadArea.style.display = 'none';
+        toggleBtn.textContent = '📦 파일 업로드 모드';
+        toggleBtn.style.background = 'linear-gradient(135deg, #f093fb 0%, #f5576c 50%, #4facfe 100%)';
+      } else {
+        manualSection.style.display = 'none';
+        analyzeBtn.style.display = 'none';
+        uploadArea.style.display = 'block';
+        toggleBtn.textContent = '📋 수동 입력 모드';
+        toggleBtn.style.background = '#718096';
+      }
+    }
+
+    // 인스타그램 팔로워/팔로잉 가져오기
+    async function fetchInstagramData() {
+      const username = document.getElementById('username').value.trim();
+      const errorDiv = document.getElementById('error');
+      const loadingDiv = document.getElementById('loading');
+      const progressBar = document.getElementById('progressBar');
+      const progressFill = document.getElementById('progressFill');
+      const fetchBtn = document.getElementById('fetchBtn');
+
+      if (!username) {
+        errorDiv.textContent = '사용자명을 입력해주세요.';
+        errorDiv.classList.add('show');
+        return;
+      }
+
+      // @ 제거
+      const cleanUsername = username.replace('@', '').toLowerCase();
+
+      // 에러 메시지 숨기기
+      errorDiv.classList.remove('show');
+      loadingDiv.classList.add('show');
+      progressBar.classList.add('show');
+      fetchBtn.disabled = true;
+      fetchBtn.textContent = '가져오는 중...';
+
+      try {
+        // 여러 방법 시도
+        let followers = [];
+        let following = [];
+
+        // 방법 1: CORS 프록시를 통한 시도 (공개 API 사용)
+        progressFill.style.width = '20%';
+        
+        try {
+          // 인스타그램 Graph API는 팔로워 목록을 제공하지 않으므로
+          // 웹 스크래핑을 시도하지만 CORS 문제로 실패할 가능성이 높음
+          
+          // 대안: 공개 CORS 프록시 사용 (예: allorigins.win)
+          const proxyUrl = 'https://api.allorigins.win/raw?url=';
+          const instagramUrl = `https://www.instagram.com/${cleanUsername}/`;
+          
+          progressFill.style.width = '40%';
+          
+          // 하지만 이것도 인스타그램이 차단할 가능성이 높음
+          // 실제로는 서드파티 API나 백엔드 서버가 필요함
+          
+          // 여기서는 사용자에게 수동 입력을 안내하는 것이 현실적
+          throw new Error('브라우저에서 직접 가져오기는 인스타그램의 보안 정책으로 인해 제한됩니다.');
+          
+        } catch (fetchError) {
+          console.error('자동 가져오기 실패:', fetchError);
+          
+          // 사용자에게 수동 입력 안내
+          loadingDiv.classList.remove('show');
+          progressBar.classList.remove('show');
+          fetchBtn.disabled = false;
+          fetchBtn.textContent = '📥 팔로워/팔로잉 가져오기';
+          
+          errorDiv.innerHTML = `
+            <strong>자동 가져오기가 불가능합니다</strong><br>
+            인스타그램의 보안 정책(CORS)으로 인해 브라우저에서 직접 데이터를 가져올 수 없습니다.<br><br>
+            <strong>해결 방법:</strong><br>
+            1. 위의 "수동 입력 모드" 버튼을 클릭하세요<br>
+            2. 인스타그램 앱/웹에서 팔로워/팔로잉 목록을 복사하여 붙여넣으세요<br>
+            3. 또는 서드파티 API 서비스(Apify 등)를 사용하거나 백엔드 서버를 구축하세요
+          `;
+          errorDiv.classList.add('show');
+          
+          // 수동 모드로 전환 제안
+          setTimeout(() => {
+            if (confirm('수동 입력 모드로 전환하시겠습니까?')) {
+              toggleManualMode();
+            }
+          }, 2000);
+          
+          return;
+        }
+
+        // 성공 시 분석 실행
+        if (followers.length > 0 || following.length > 0) {
+          document.getElementById('followers').value = followers.join('\n');
+          document.getElementById('following').value = following.join('\n');
+          analyze();
+        }
+
+      } catch (error) {
+        loadingDiv.classList.remove('show');
+        progressBar.classList.remove('show');
+        fetchBtn.disabled = false;
+        fetchBtn.textContent = '📥 팔로워/팔로잉 가져오기';
+        
+        errorDiv.textContent = error.message || '데이터를 가져오는 중 오류가 발생했습니다.';
+        errorDiv.classList.add('show');
+      }
+    }
+
+    // 텍스트에서 사용자명 추출
+    function extractUsernames(text) {
+      if (!text || !text.trim()) return [];
+      
+      const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+      const usernames = new Set();
+      
+      lines.forEach(line => {
+        // 인스타그램 사용자명 패턴: @username 또는 username만
+        // 일반적으로 사용자명은 알파벳, 숫자, 언더스코어, 점만 포함
+        const matches = line.match(/(?:@)?([a-zA-Z0-9._]+)/g);
+        if (matches) {
+          matches.forEach(match => {
+            // @ 제거하고 소문자로 변환
+            const username = match.replace('@', '').toLowerCase();
+            // 너무 짧거나 긴 것 제외 (일반적으로 1-30자)
+            if (username.length >= 1 && username.length <= 30) {
+              usernames.add(username);
+            }
+          });
+        }
+      });
+      
+      return Array.from(usernames);
+    }
+
+    // 분석 실행
+    function analyze() {
+      const errorDiv = document.getElementById('error');
+      const resultsDiv = document.getElementById('results');
+      const loadingDiv = document.getElementById('loading');
+      const btn = document.getElementById('analyzeBtn');
+      
+      // 로딩 숨기기
+      loadingDiv.classList.remove('show');
+      
+      const followersText = document.getElementById('followers').value.trim();
+      const followingText = document.getElementById('following').value.trim();
+
+      // 입력 검증
+      if (!followersText && !followingText) {
+        errorDiv.textContent = '팔로워 또는 팔로잉 목록 중 하나 이상을 입력해주세요.';
+        errorDiv.classList.add('show');
+        resultsDiv.classList.remove('show');
+        return;
+      }
+
+      // 에러 메시지 숨기기
+      errorDiv.classList.remove('show');
+
+      // 버튼 비활성화 및 로딩 표시
+      btn.disabled = true;
+      btn.textContent = '분석 중...';
+
+      try {
+        // 사용자명 추출
+        const followers = extractUsernames(followersText);
+        const following = extractUsernames(followingText);
+
+        if (followers.length === 0 && following.length === 0) {
+          throw new Error('사용자명을 찾을 수 없습니다. 인스타그램에서 복사한 텍스트를 붙여넣었는지 확인해주세요.');
+        }
+
+        // 집합으로 변환하여 빠른 조회
+        const followersSet = new Set(followers);
+        const followingSet = new Set(following);
+
+        // 분석
+        const mutual = [];
+        const onlyFollowers = [];
+        const onlyFollowing = [];
+
+        // 상호 팔로우 찾기
+        followersSet.forEach(username => {
+          if (followingSet.has(username)) {
+            mutual.push(username);
+          } else {
+            onlyFollowers.push(username);
+          }
+        });
+
+        // 내가 팔로우만 하는 계정 찾기
+        followingSet.forEach(username => {
+          if (!followersSet.has(username)) {
+            onlyFollowing.push(username);
+          }
+        });
+
+        // 정렬
+        mutual.sort();
+        onlyFollowers.sort();
+        onlyFollowing.sort();
+
+        // 데이터 저장
+        analysisData = {
+          mutual,
+          onlyFollowers,
+          onlyFollowing
+        };
+
+        // 결과 표시
+        displayResults(followers.length, following.length, mutual.length, onlyFollowers.length, onlyFollowing.length);
+        
+        resultsDiv.classList.add('show');
+        btn.disabled = false;
+        btn.textContent = '🔍 분석하기';
+
+        // 결과로 스크롤
+        resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      } catch (error) {
+        btn.disabled = false;
+        btn.textContent = '🔍 분석하기';
+        errorDiv.textContent = error.message || '분석 중 오류가 발생했습니다.';
+        errorDiv.classList.add('show');
+        resultsDiv.classList.remove('show');
+      }
+    }
+
+    // 결과 표시
+    function displayResults(totalFollowers, totalFollowing, mutualCount, onlyFollowersCount, onlyFollowingCount) {
+      // 통계 업데이트
+      document.getElementById('totalFollowers').textContent = totalFollowers.toLocaleString();
+      document.getElementById('totalFollowing').textContent = totalFollowing.toLocaleString();
+      document.getElementById('mutualCount').textContent = mutualCount.toLocaleString();
+      document.getElementById('onlyFollowersCount').textContent = onlyFollowersCount.toLocaleString();
+      document.getElementById('onlyFollowingCount').textContent = onlyFollowingCount.toLocaleString();
+
+      // 라벨 업데이트
+      document.getElementById('mutualCountLabel').textContent = mutualCount.toLocaleString();
+      document.getElementById('onlyFollowersCountLabel').textContent = onlyFollowersCount.toLocaleString();
+      document.getElementById('onlyFollowingCountLabel').textContent = onlyFollowingCount.toLocaleString();
+
+      // 목록 표시
+      displayList('mutualList', analysisData.mutual, 'both', 'mutual');
+      displayList('onlyFollowersList', analysisData.onlyFollowers, 'followers', 'onlyFollowers');
+      displayList('onlyFollowingList', analysisData.onlyFollowing, 'following', 'onlyFollowing');
+    }
+
+    // 목록 표시
+    function displayList(elementId, list, source, key) {
+      const listElement = document.getElementById(elementId);
+      
+      if (list.length === 0) {
+        listElement.innerHTML = '<div class="empty-message">해당 항목이 없습니다.</div>';
+        return;
+      }
+
+      // 필터 적용
+      const filter = (listFilters[key] || '').toLowerCase().trim();
+      let working = list.slice();
+      if (filter) {
+        working = working.filter(u => u.toLowerCase().includes(filter));
+      }
+
+      // 정렬 적용
+      const mode = listSortModes[key] || 'name';
+      if (mode === 'name') {
+        working.sort((a, b) => a.localeCompare(b));
+      } else {
+        // 날짜 기준 정렬
+        const getTs = (username) => {
+          if (source === 'followers') return followersTimestampMap[username] || 0;
+          if (source === 'following') return followingTimestampMap[username] || 0;
+          return followingTimestampMap[username] ?? followersTimestampMap[username] ?? 0;
+        };
+        working.sort((a, b) => {
+          const ta = getTs(a);
+          const tb = getTs(b);
+          if (mode === 'date_desc') return (tb || 0) - (ta || 0);
+          // date_asc
+          return (ta || 0) - (tb || 0);
+        });
+      }
+
+      listElement.innerHTML = working.map(username => {
+        const safeUsername = username.replace(/"/g, '&quot;');
+        const url = `https://www.instagram.com/${safeUsername}/`;
+
+        // timestamp → 날짜 문자열 변환
+        let ts = null;
+        if (source === 'followers') {
+          ts = followersTimestampMap[username];
+        } else if (source === 'following') {
+          ts = followingTimestampMap[username];
+        } else if (source === 'both') {
+          ts = followingTimestampMap[username] ?? followersTimestampMap[username];
+        }
+
+        let dateLabel = '';
+        if (ts) {
+          const d = new Date(ts * 1000);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          dateLabel = `<span class="username-date">${y}.${m}.${day}</span>`;
+        }
+
+        return `
+          <div class="list-item">
+            <a href="${url}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;">
+              @${safeUsername}${dateLabel}
+            </a>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 목록 복사
+    function copyList(type) {
+      const list = analysisData[type];
+      if (list.length === 0) {
+        alert('복사할 항목이 없습니다.');
+        return;
+      }
+
+      const text = list.map(username => `@${username}`).join('\n');
+      
+      navigator.clipboard.writeText(text).then(() => {
+        alert(`${list.length}개의 항목이 클립보드에 복사되었습니다.`);
+      }).catch(err => {
+        // 폴백 방법
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand('copy');
+          alert(`${list.length}개의 항목이 클립보드에 복사되었습니다.`);
+        } catch (e) {
+          alert('복사에 실패했습니다. 수동으로 복사해주세요.');
+        }
+        document.body.removeChild(textarea);
+      });
+    }
+
+    // 파일 업로드 이벤트
+    const fileInput = document.getElementById('fileInput');
+    const uploadArea = document.getElementById('uploadArea');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+
+    // 클릭으로 파일 선택
+    uploadArea.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    // 파일 선택 시
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        handleZipFile(file);
+      }
+    });
+
+    // 드래그 앤 드롭
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        if (file.name.endsWith('.zip')) {
+          fileInput.files = e.dataTransfer.files;
+          handleZipFile(file);
+        } else {
+          const errorDiv = document.getElementById('error');
+          errorDiv.textContent = 'ZIP 파일만 업로드할 수 있습니다.';
+          errorDiv.classList.add('show');
+        }
+      }
+    });
+
+    // 이벤트 리스너
+    analyzeBtn.addEventListener('click', function() {
+      if (isManualMode) {
+        analyze();
+      } else {
+        analyzeFromUploaded();
+      }
+    });
+    document.getElementById('toggleModeBtn').addEventListener('click', toggleManualMode);
+
+    // Enter 키로도 분석 가능 (Ctrl+Enter)
+    document.getElementById('followers').addEventListener('keydown', function(e) {
+      if (e.ctrlKey && e.key === 'Enter') {
+        analyze();
+      }
+    });
+    document.getElementById('following').addEventListener('keydown', function(e) {
+      if (e.ctrlKey && e.key === 'Enter') {
+        analyze();
+      }
+    });
+  </script>
+</body>
+</html>
