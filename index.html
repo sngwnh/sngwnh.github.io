@@ -14,6 +14,9 @@
       padding: 0;
       box-sizing: border-box;
     }
+    html, body {
+      overflow-x: hidden;
+    }
     body {
       font-family: 'Noto Sans KR', sans-serif;
       min-height: 100vh;
@@ -28,6 +31,7 @@
       border-radius: 16px;
       padding: 2rem 2.25rem;
       box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      overflow-x: hidden;
     }
     h1 {
       font-size: 1.9rem;
@@ -140,6 +144,17 @@
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 1rem;
       margin-bottom: 2rem;
+      min-width: 0;
+    }
+    @media (max-width: 768px) {
+      .stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 380px) {
+      .stats {
+        grid-template-columns: 1fr;
+      }
     }
     .stat-card {
       background: #f9fafb;
@@ -180,8 +195,11 @@
       margin-bottom: 2rem;
     }
     @media (max-width: 768px) {
+      body { padding: 1rem; }
+      .container { padding: 1.25rem 1rem; }
       .lists {
         grid-template-columns: 1fr;
+        gap: 1.25rem;
       }
     }
     .list-group {
@@ -189,24 +207,51 @@
       border-radius: 12px;
       padding: 1.25rem 1.3rem;
       border: 1px solid #e5e7eb;
+      min-width: 0;
     }
     .list-group h3 {
       color: #111827;
       margin-bottom: 0.8rem;
       font-size: 1.05rem;
+      word-break: break-word;
+    }
+    .list-filter-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+      align-items: center;
+      min-width: 0;
+    }
+    .list-filter-row input {
+      flex: 1;
+      min-width: 0;
+    }
+    .list-filter-row select {
+      flex-shrink: 0;
+    }
+    @media (max-width: 480px) {
+      .list-filter-row { flex-wrap: wrap; }
+      .list-filter-row select { width: 100%; }
     }
     .list-group .list {
       max-height: 420px;
       overflow-y: auto;
+      overflow-x: hidden;
       background: #f9fafb;
       border-radius: 10px;
       padding: 0.75rem 0.9rem;
+      min-width: 0;
     }
     .list-item {
       padding: 0.45rem 0.3rem;
       border-bottom: 1px solid #e5e7eb;
       color: #374151;
       font-size: 0.9rem;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    .list-item a {
+      word-break: break-all;
     }
     .list-item:last-child {
       border-bottom: none;
@@ -421,12 +466,12 @@
       <div class="lists">
         <div class="list-group">
           <h3>🤝 상호 팔로우 (<span id="mutualCountLabel">0</span>명)</h3>
-          <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center;">
+          <div class="list-filter-row">
             <input
               type="text"
               id="mutualFilter"
               placeholder="검색 (username)"
-              style="flex: 1; padding: 0.35rem 0.6rem; font-size: 0.85rem; border-radius: 6px; border: 1px solid #e2e8f0;"
+              style="padding: 0.35rem 0.6rem; font-size: 0.85rem; border-radius: 6px; border: 1px solid #e2e8f0;"
               oninput="handleFilterChange('mutual', this.value)"
             />
             <select
@@ -444,12 +489,12 @@
         </div>
         <div class="list-group">
           <h3>👤 나를 팔로우만 함 (<span id="onlyFollowersCountLabel">0</span>명)</h3>
-          <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center;">
+          <div class="list-filter-row">
             <input
               type="text"
               id="onlyFollowersFilter"
               placeholder="검색 (username)"
-              style="flex: 1; padding: 0.35rem 0.6rem; font-size: 0.85rem; border-radius: 6px; border: 1px solid #e2e8f0;"
+              style="padding: 0.35rem 0.6rem; font-size: 0.85rem; border-radius: 6px; border: 1px solid #e2e8f0;"
               oninput="handleFilterChange('onlyFollowers', this.value)"
             />
             <select
@@ -467,12 +512,12 @@
         </div>
         <div class="list-group">
           <h3>👥 내가 팔로우만 함 (<span id="onlyFollowingCountLabel">0</span>명)</h3>
-          <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center;">
+          <div class="list-filter-row">
             <input
               type="text"
               id="onlyFollowingFilter"
               placeholder="검색 (username)"
-              style="flex: 1; padding: 0.35rem 0.6rem; font-size: 0.85rem; border-radius: 6px; border: 1px solid #e2e8f0;"
+              style="padding: 0.35rem 0.6rem; font-size: 0.85rem; border-radius: 6px; border: 1px solid #e2e8f0;"
               oninput="handleFilterChange('onlyFollowing', this.value)"
             />
             <select
