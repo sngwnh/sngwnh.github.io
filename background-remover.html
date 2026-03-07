@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>배경 제거 – 옷·잡화 사진</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 1rem;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #1a1a2e;
+      color: #e8e8e8;
+      min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
+    }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      margin: 0 0 0.5rem;
+      text-align: center;
+    }
+    .sub {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 1.25rem;
+    }
+    .zone {
+      border: 2px dashed #4a4a6a;
+      border-radius: 12px;
+      padding: 2rem 1rem;
+      text-align: center;
+      background: #252540;
+      margin-bottom: 1rem;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .zone.dragover { border-color: #6c5ce7; background: #2d2a4a; }
+    .zone.working { pointer-events: none; opacity: 0.85; }
+    .zone label {
+      display: block;
+      cursor: pointer;
+      padding: 0.5rem;
+    }
+    .zone input[type="file"] { display: none; }
+    .zone .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .zone .hint { color: #aaa; font-size: 0.9rem; }
+    .btn {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #6c5ce7;
+      color: #fff;
+      margin-top: 0.5rem;
+      transition: background 0.2s;
+    }
+    .btn:hover, .btn:focus { background: #5b4bd4; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn.secondary { background: #3d3d5c; }
+    .btn.secondary:hover { background: #4a4a6a; }
+    #progressWrap {
+      display: none;
+      margin: 1rem 0;
+      padding: 0.75rem;
+      background: #252540;
+      border-radius: 8px;
+    }
+    #progressWrap.visible { display: block; }
+    #progressText { font-size: 0.9rem; color: #b8b8d0; margin-bottom: 0.5rem; }
+    #progressBar {
+      height: 6px;
+      background: #3d3d5c;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    #progressBar span {
+      display: block;
+      height: 100%;
+      background: #6c5ce7;
+      width: 0%;
+      transition: width 0.2s;
+    }
+    .preview {
+      margin-top: 1.25rem;
+      text-align: center;
+    }
+    .preview img {
+      max-width: 100%;
+      max-height: 60vh;
+      border-radius: 8px;
+      background: repeating-conic-gradient(#2a2a3a 0% 25%, #252535 0% 50%) 50% / 16px 16px;
+    }
+    .preview.result-white img { background: #e8e8e8; }
+    .preview .actions { margin-top: 0.75rem; }
+    .preview .actions .btn { margin: 0 0.25rem; }
+    #error {
+      display: none;
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: #3d2a2a;
+      color: #f0a0a0;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+    #error.visible { display: block; }
+    .model-hint {
+      font-size: 0.75rem;
+      color: #666;
+      text-align: center;
+      margin-top: 1rem;
+    }
+    .opts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+    .opt {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      color: #b8b8d0;
+    }
+    .opt select {
+      padding: 0.4rem 0.6rem;
+      border-radius: 6px;
+      border: 1px solid #4a4a6a;
+      background: #252540;
+      color: #e8e8e8;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>🖼️ 배경 제거</h1>
+  <p class="sub">옷·잡화 등 물건 사진을 넣으면 배경만 제거됩니다 (서버 없이 브라우저에서 처리)</p>
+
+  <div class="opts">
+    <label class="opt">
+      <span>배경 색</span>
+      <select id="bgColor">
+        <option value="white">흰색</option>
+        <option value="transparent">투명</option>
+      </select>
+    </label>
+    <label class="opt">
+      <span>경계</span>
+      <select id="edgeOpt">
+        <option value="sharp" selected>선명하게</option>
+        <option value="smooth">부드럽게 (블러)</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="zone" id="dropZone">
+    <label for="fileInput">
+      <span class="icon">📷</span>
+      <div>사진 선택 또는 촬영</div>
+      <div class="hint">탭해서 갤러리/카메라에서 이미지 선택</div>
+      <input type="file" id="fileInput" accept="image/*">
+    </label>
+  </div>
+
+  <div id="progressWrap">
+    <div id="progressText">준비 중…</div>
+    <div id="progressBar"><span id="progressBarFill"></span></div>
+  </div>
+
+  <div class="preview" id="preview" style="display:none;">
+    <img id="resultImg" alt="결과">
+    <div class="actions">
+      <a id="downloadBtn" class="btn" download="no-bg.png">다운로드 (PNG)</a>
+      <button type="button" class="btn secondary" id="againBtn">다른 사진</button>
+    </div>
+  </div>
+
+  <div id="error"></div>
+  <p class="model-hint">처음 한 번은 모델(~176MB)을 받아와서 시간이 걸릴 수 있습니다.</p>
+
+  <!-- 1. ONNX Runtime Web (전역 ort) -->
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/dist/ort.min.js"></script>
+  <!-- 2. rembg-web UMD (전역 RembgWeb) -->
+  <script src="https://unpkg.com/@bunnio/rembg-web@1.0.2/dist/index.umd.js"></script>
+  <script>
+    (function () {
+      var dropZone = document.getElementById('dropZone');
+      var fileInput = document.getElementById('fileInput');
+      var progressWrap = document.getElementById('progressWrap');
+      var progressText = document.getElementById('progressText');
+      var progressBarFill = document.getElementById('progressBarFill');
+      var preview = document.getElementById('preview');
+      var resultImg = document.getElementById('resultImg');
+      var downloadBtn = document.getElementById('downloadBtn');
+      var againBtn = document.getElementById('againBtn');
+      var errorEl = document.getElementById('error');
+
+      function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.classList.add('visible');
+      }
+      function hideError() {
+        errorEl.classList.remove('visible');
+      }
+      function setProgress(visible, text, percent) {
+        progressWrap.classList.toggle('visible', !!visible);
+        if (progressText) progressText.textContent = text || '';
+        if (progressBarFill) progressBarFill.style.width = (percent != null ? percent : 0) + '%';
+      }
+      function setWorking(working) {
+        dropZone.classList.toggle('working', !!working);
+      }
+
+      var RembgWeb = window.RembgWeb;
+      var modelBaseUrl = 'https://huggingface.co/tomjackson2023/rembg/resolve/main';
+      if (RembgWeb && RembgWeb.rembgConfig) {
+        RembgWeb.rembgConfig.setBaseUrl(modelBaseUrl);
+      }
+
+      function runRemoveBackground(file) {
+        if (!file) {
+          showError('이미지 파일을 선택해 주세요.');
+          return;
+        }
+        var type = (file.type || '').toLowerCase();
+        if (type && !type.startsWith('image/')) {
+          showError('이미지 파일을 선택해 주세요.');
+          return;
+        }
+        hideError();
+        setWorking(true);
+        setProgress(true, '모델 로딩 및 처리 중…', 10);
+        preview.style.display = 'none';
+
+        var bgColorSel = document.getElementById('bgColor').value;
+        var edgeSel = document.getElementById('edgeOpt').value;
+
+        var removeOpts = {
+          session: null,
+          postProcessMask: edgeSel === 'smooth'
+        };
+        if (bgColorSel === 'white') {
+          removeOpts.bgcolor = [255, 255, 255, 255];
+        }
+
+        var sessionPromise = RembgWeb.newSession('u2net');
+
+        sessionPromise.then(function (session) {
+          removeOpts.session = session;
+          setProgress(true, '배경 제거 중…', 50);
+          return RembgWeb.remove(file, removeOpts);
+        }).then(function (blob) {
+          setProgress(true, '완료', 100);
+          var url = URL.createObjectURL(blob);
+          resultImg.src = url;
+          downloadBtn.href = url;
+          downloadBtn.download = 'no-bg.png';
+          preview.classList.toggle('result-white', bgColorSel === 'white');
+          preview.style.display = 'block';
+          setProgress(false);
+          setWorking(false);
+        }).catch(function (err) {
+          console.error(err);
+          showError('처리 실패: ' + (err && err.message ? err.message : String(err)));
+          setProgress(false);
+          setWorking(false);
+        });
+      }
+
+      function onFile(file) {
+        if (!file) return;
+        runRemoveBackground(file);
+      }
+
+      function readChosenFile() {
+        var file = fileInput.files && fileInput.files[0];
+        if (file) {
+          onFile(file);
+          return true;
+        }
+        return false;
+      }
+
+      function onInputOrChange() {
+        if (readChosenFile()) return;
+        setTimeout(function () {
+          if (readChosenFile()) return;
+          setTimeout(function () {
+            if (readChosenFile()) return;
+            showError('선택한 파일을 읽을 수 없습니다. 다시 선택해 주세요.');
+          }, 200);
+        }, 0);
+      }
+      fileInput.addEventListener('change', onInputOrChange);
+      fileInput.addEventListener('input', onInputOrChange);
+
+      againBtn.addEventListener('click', function () {
+        fileInput.value = '';
+        preview.style.display = 'none';
+        hideError();
+      });
+
+      dropZone.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+      });
+      dropZone.addEventListener('dragleave', function () {
+        dropZone.classList.remove('dragover');
+      });
+      dropZone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        onFile(file);
+      });
+    })();
+  </script>
+</body>
+</html>
