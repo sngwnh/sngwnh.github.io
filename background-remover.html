@@ -219,8 +219,12 @@
 
       var RembgWeb = window.RembgWeb;
       var modelBaseUrl = 'https://huggingface.co/tomjackson2023/rembg/resolve/main';
+      var isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || /iPhone|iPad|iPod/i.test(navigator.userAgent);
       if (RembgWeb && RembgWeb.rembgConfig) {
         RembgWeb.rembgConfig.setBaseUrl(modelBaseUrl);
+        if (isSafari) {
+          RembgWeb.rembgConfig.setSessionCacheBypass(true);
+        }
       }
 
       function runRemoveBackground(file) {
@@ -249,7 +253,8 @@
           removeOpts.bgcolor = [255, 255, 255, 255];
         }
 
-        var sessionPromise = RembgWeb.newSession('u2net');
+        var sessionOpts = isSafari ? { bypassSessionCache: true } : undefined;
+        var sessionPromise = RembgWeb.newSession('u2net', undefined, sessionOpts);
 
         sessionPromise.then(function (session) {
           removeOpts.session = session;
